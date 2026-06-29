@@ -1,0 +1,61 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Diabetes Prediction API
+  Lambda + API Gateway proxy for SageMaker Canvas endpoint
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: python3.13
+    Environment:
+      Variables:
+        AWS_REGION_NAME: ap-south-1
+        ENDPOINT_NAME: canvas-new-deployment-06-29-2026-12-09-AM
+
+Resources:
+  DiabetesApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: diabetes-prediction-api
+      CodeUri: lambda/
+      Handler: lambda_function.lambda_handler
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - sagemaker:InvokeEndpoint
+              Resource:
+                - !Sub arn:aws:sagemaker:ap-south-1:${AWS::AccountId}:endpoint/canvas-new-deployment-06-29-2026-12-09-AM
+      Events:
+        PredictPost:
+          Type: Api
+          Properties:
+            RestApiId: !Ref DiabetesApi
+            Path: /predict
+            Method: POST
+        PredictOptions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref DiabetesApi
+            Path: /predict
+            Method: OPTIONS
+
+  DiabetesApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: diabetes-prediction-api
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${DiabetesApi}.execute-api.ap-south-1.amazonaws.com/prod/predict"
+  FunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt DiabetesApiFunction.Arn

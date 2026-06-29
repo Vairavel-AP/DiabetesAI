@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiabetesAI — Risk Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;
+  --bg2:#13161e;
+  --bg3:#1a1e28;
+  --card:#1e2230;
+  --card2:#242839;
+  --border:#2d3348;
+  --border2:#3a4060;
+  --text:#e8eaf0;
+  --muted:#8891aa;
+  --dim:#50596e;
+  --accent:#4f8ef7;
+  --accent2:#3a78e8;
+  --accent-bg:rgba(79,142,247,0.10);
+  --accent-border:rgba(79,142,247,0.25);
+  --success:#34c97e;
+  --success-bg:rgba(52,201,126,0.10);
+  --danger:#f05454;
+  --danger-bg:rgba(240,84,84,0.10);
+  --warn:#f0a854;
+  --warn-bg:rgba(240,168,84,0.10);
+  --radius:10px;
+  --radius-lg:16px;
+  --font:'Inter',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* ── Layout ────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+
+/* ── Sidebar ───────────────────────────────────────────── */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:28px 24px 20px;border-bottom:1px solid var(--border)}
+.logo-mark{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;fill:white}
+.logo-text{font-size:16px;font-weight:600;color:var(--text)}
+.logo-sub{font-size:11px;color:var(--dim);margin-top:1px}
+
+.sidebar-nav{padding:16px 12px;flex:1}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);padding:12px 12px 6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13.5px;color:var(--muted);cursor:pointer;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;text-decoration:none}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:.7}
+.nav-item.active svg{opacity:1}
+
+.sidebar-footer{padding:16px 12px;border-top:1px solid var(--border)}
+.model-badge{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px}
+.model-badge-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.model-badge-name{font-size:12px;font-family:var(--mono);color:var(--accent);word-break:break-all}
+.status-dot{display:inline-block;width:6px;height:6px;background:var(--success);border-radius:50%;margin-right:5px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── Main ───────────────────────────────────────────────── */
+.main{display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.topbar-title{font-size:15px;font-weight:500}
+.topbar-sub{font-size:12px;color:var(--muted);margin-top:1px}
+.aws-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);background:var(--bg3);border:1px solid var(--border);padding:5px 10px;border-radius:6px}
+.aws-badge svg{width:14px;height:14px}
+
+.content{padding:28px 32px;overflow-y:auto;flex:1}
+
+/* ── Section header ─────────────────────────────────────── */
+.section-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+.section-header h2{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--dim)}
+.section-divider{flex:1;height:1px;background:var(--border)}
+
+/* ── Input Grid ─────────────────────────────────────────── */
+.input-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:24px}
+
+.field-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;transition:border-color .15s}
+.field-card:focus-within{border-color:var(--border2)}
+.field-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.field-label{font-size:13px;font-weight:500;color:var(--text)}
+.field-unit{font-size:11px;color:var(--dim);font-family:var(--mono);background:var(--bg3);padding:2px 7px;border-radius:4px}
+.field-value{font-size:26px;font-weight:500;font-family:var(--mono);color:var(--accent);margin-bottom:10px;line-height:1}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border2);outline:none;cursor:pointer}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg)}
+.slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg)}
+.field-range{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--dim);font-family:var(--mono)}
+.field-hint{font-size:11px;color:var(--dim);margin-top:6px}
+
+/* ── Predict Button ─────────────────────────────────────── */
+.predict-wrap{margin-bottom:24px}
+.predict-btn{width:100%;height:48px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,transform .1s}
+.predict-btn:hover{background:var(--accent2)}
+.predict-btn:active{transform:scale(.99)}
+.predict-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.predict-btn svg{width:18px;height:18px}
+
+/* ── Result Card ─────────────────────────────────────────── */
+.result-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:24px}
+.result-top{padding:24px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}
+.result-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-bottom:6px}
+.result-verdict{font-size:28px;font-weight:600;line-height:1.1}
+.result-verdict.danger{color:var(--danger)}
+.result-verdict.success{color:var(--success)}
+.result-desc{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.6}
+.result-gauge{width:100px;height:100px;flex-shrink:0}
+.gauge-svg{width:100%;height:100%}
+
+.result-metrics{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border)}
+.metric{padding:16px;border-right:1px solid var(--border)}
+.metric:last-child{border-right:none}
+.metric-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:4px}
+.metric-val{font-size:20px;font-weight:600;font-family:var(--mono)}
+.metric-val.accent{color:var(--accent)}
+.metric-val.danger{color:var(--danger)}
+.metric-val.success{color:var(--success)}
+.metric-sub{font-size:11px;color:var(--dim);margin-top:2px}
+
+.result-bar-section{padding:16px 24px;border-top:1px solid var(--border)}
+.bar-header{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px}
+.bar-track{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .8s cubic-bezier(.34,1.56,.64,1)}
+.bar-fill.danger{background:linear-gradient(90deg,var(--warn),var(--danger))}
+.bar-fill.success{background:linear-gradient(90deg,var(--accent),var(--success))}
+
+.disclaimer{padding:12px 24px;border-top:1px solid var(--border);background:var(--bg3);font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.disclaimer svg{width:14px;height:14px;flex-shrink:0;color:var(--warn)}
+
+/* ── Payload Preview ─────────────────────────────────────── */
+.payload-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:24px}
+.payload-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.payload-title{font-size:12px;font-weight:500;color:var(--muted)}
+.copy-btn{font-size:11px;color:var(--accent);cursor:pointer;background:var(--accent-bg);border:1px solid var(--accent-border);padding:3px 10px;border-radius:5px;transition:opacity .15s}
+.copy-btn:hover{opacity:.8}
+.payload-code{font-family:var(--mono);font-size:12px;color:var(--success);background:var(--bg3);border-radius:6px;padding:12px;word-break:break-all;line-height:1.6}
+
+/* ── History Table ────────────────────────────────────────── */
+.history-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.history-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.history-title{font-size:13px;font-weight:500}
+.clear-btn{font-size:11px;color:var(--dim);cursor:pointer;background:none;border:none;font-family:var(--font)}
+.clear-btn:hover{color:var(--danger)}
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);padding:10px 16px;text-align:left;border-bottom:1px solid var(--border);background:var(--bg3)}
+td{font-size:12px;font-family:var(--mono);padding:10px 16px;border-bottom:1px solid var(--border);color:var(--muted)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3);color:var(--text)}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;font-family:var(--font)}
+.pill.danger{background:var(--danger-bg);color:var(--danger)}
+.pill.success{background:var(--success-bg);color:var(--success)}
+.no-history{text-align:center;padding:24px;color:var(--dim);font-size:13px;font-family:var(--font)}
+
+/* ── Loading / Error ─────────────────────────────────────── */
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.error-card{background:var(--danger-bg);border:1px solid rgba(240,84,84,.3);border-radius:var(--radius);padding:16px;margin-bottom:16px;font-size:13px;color:var(--danger);display:flex;gap:10px}
+.error-card svg{width:16px;height:16px;flex-shrink:0;margin-top:2px}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media(max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .content{padding:20px}
+  .input-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+        </div>
+        <div>
+          <div class="logo-text">DiabetesAI</div>
+          <div class="logo-sub">Risk Prediction System</div>
+        </div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">Tools</div>
+      <a class="nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        Predict
+      </a>
+      <a class="nav-item" href="#history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4H3z"/></svg>
+        History
+      </a>
+
+      <div class="nav-section" style="margin-top:12px">Model info</div>
+      <div style="padding:0 4px">
+        <div style="font-size:12px;color:var(--muted);padding:6px 8px;line-height:1.7">
+          <div style="margin-bottom:4px"><span style="color:var(--dim)">Accuracy</span> <span style="float:right;color:var(--text);font-family:var(--mono)">81.17%</span></div>
+          <div style="margin-bottom:4px"><span style="color:var(--dim)">F1 Score</span> <span style="float:right;color:var(--text);font-family:var(--mono)">0.743</span></div>
+          <div style="margin-bottom:4px"><span style="color:var(--dim)">AUC-ROC</span> <span style="float:right;color:var(--success);font-family:var(--mono)">0.878</span></div>
+          <div><span style="color:var(--dim)">Recall</span> <span style="float:right;color:var(--text);font-family:var(--mono)">77.78%</span></div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="model-badge">
+        <div class="model-badge-label"><span class="status-dot"></span>Live endpoint</div>
+        <div class="model-badge-name">SageMaker Canvas · ap-south-1</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Diabetes Risk Prediction</div>
+        <div class="topbar-sub">Enter patient clinical values and run inference</div>
+      </div>
+      <div class="aws-badge">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.29 12.03c0 .42.04.76.12 1.01.09.26.2.54.36.84a.5.5 0 01.08.26c0 .11-.07.22-.21.33l-.71.47a.53.53 0 01-.29.1c-.11 0-.22-.06-.33-.17a3.5 3.5 0 01-.4-.52 8.71 8.71 0 01-.34-.67c-.86 1.01-1.94 1.51-3.23 1.51-.93 0-1.66-.26-2.2-.79C-.21 14.87-.5 14.17-.5 13.3c0-.93.33-1.69.99-2.26.66-.57 1.54-.86 2.65-.86.37 0 .75.03 1.15.09.4.06.81.15 1.24.27v-.79c0-.82-.17-1.4-.51-1.73-.34-.35-.92-.52-1.74-.52-.37 0-.76.04-1.16.13-.4.09-.79.21-1.17.38a3.1 3.1 0 01-.37.14.64.64 0 01-.17.03c-.15 0-.22-.11-.22-.33V7.7c0-.17.02-.3.07-.37.05-.07.15-.14.3-.21.37-.19.82-.35 1.34-.48A6.6 6.6 0 013.3 6.4c1.27 0 2.2.29 2.79.87.59.58.88 1.46.88 2.64v3.12h-.68zm-4.46 1.67c.36 0 .73-.07 1.12-.2.39-.14.74-.39 1.04-.73.17-.2.3-.43.37-.69.07-.26.11-.57.11-.93v-.45a9.05 9.05 0 00-1-.18 8.21 8.21 0 00-1.02-.06c-.73 0-1.26.14-1.62.43-.36.29-.53.69-.53 1.22 0 .5.13.88.39 1.14.25.27.62.45 1.14.45zm8.72 1.17c-.19 0-.32-.03-.4-.1-.08-.06-.15-.2-.21-.39l-2.35-7.74c-.06-.2-.09-.33-.09-.4 0-.16.08-.25.24-.25h.98c.2 0 .33.03.4.1.08.06.14.2.2.39l1.68 6.62 1.56-6.62c.05-.2.11-.33.19-.39.08-.06.22-.1.41-.1h.8c.2 0 .33.03.41.1.08.06.15.2.19.39l1.58 6.7 1.73-6.7c.06-.2.13-.33.2-.39.08-.06.21-.1.4-.1h.93c.16 0 .24.08.24.25 0 .05-.01.1-.02.16l-.07.25-2.41 7.74c-.06.2-.13.33-.21.39-.08.06-.21.1-.4.1h-.86c-.2 0-.33-.03-.41-.1-.08-.07-.15-.2-.19-.4L12.8 8.33l-1.54 6.54c-.05.2-.11.33-.19.4-.08.06-.22.1-.41.1h-.81zm12.86.29a6.4 6.4 0 01-1.5-.18 4.46 4.46 0 01-1.12-.43c-.16-.09-.27-.19-.31-.28a.71.71 0 01-.07-.29v-.51c0-.22.08-.33.24-.33a.59.59 0 01.19.03c.06.02.15.06.25.11.34.15.71.27 1.1.35.4.08.79.12 1.19.12.63 0 1.12-.11 1.46-.33.34-.22.52-.54.52-.95 0-.28-.09-.51-.27-.7-.18-.19-.52-.36-1.02-.52l-1.46-.45c-.74-.23-1.28-.57-1.62-1.02a2.45 2.45 0 01-.51-1.51c0-.44.09-.83.28-1.16.19-.33.44-.62.75-.85.31-.24.67-.42 1.09-.54.42-.12.86-.18 1.32-.18.23 0 .47.01.7.04.24.03.46.07.68.12.21.05.41.11.6.18.19.07.34.14.45.21.15.09.26.19.33.29.07.1.1.22.1.37v.47c0 .22-.08.34-.24.34-.08 0-.21-.04-.38-.12a4.6 4.6 0 00-1.93-.39c-.57 0-1.02.09-1.33.28-.31.19-.47.48-.47.89 0 .28.1.52.3.71.2.19.57.38 1.1.55l1.43.45c.73.23 1.26.55 1.57.98.31.43.46.92.46 1.47 0 .45-.09.86-.27 1.21-.18.36-.43.67-.76.93-.33.26-.72.46-1.18.6-.48.14-.99.21-1.53.21z"/></svg>
+        SageMaker Canvas
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- Input Grid -->
+      <div class="section-header">
+        <h2>Patient features</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="input-grid">
+        <!-- Pregnancies -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Pregnancies</span>
+            <span class="field-unit">count</span>
+          </div>
+          <div class="field-value" id="v-preg">3</div>
+          <input type="range" class="slider" id="preg" min="0" max="17" value="3" step="1" oninput="setVal('preg','v-preg',0)">
+          <div class="field-range"><span>0</span><span>17</span></div>
+          <div class="field-hint">Number of times pregnant</div>
+        </div>
+
+        <!-- Glucose -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Glucose</span>
+            <span class="field-unit">mg/dL</span>
+          </div>
+          <div class="field-value" id="v-glucose">120</div>
+          <input type="range" class="slider" id="glucose" min="44" max="199" value="120" step="1" oninput="setVal('glucose','v-glucose',0)">
+          <div class="field-range"><span>44</span><span>199</span></div>
+          <div class="field-hint">2-hour plasma glucose (oral GTT)</div>
+        </div>
+
+        <!-- Blood Pressure -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Blood pressure</span>
+            <span class="field-unit">mmHg</span>
+          </div>
+          <div class="field-value" id="v-bp">72</div>
+          <input type="range" class="slider" id="bp" min="24" max="122" value="72" step="1" oninput="setVal('bp','v-bp',0)">
+          <div class="field-range"><span>24</span><span>122</span></div>
+          <div class="field-hint">Diastolic blood pressure</div>
+        </div>
+
+        <!-- Skin Thickness -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Skin thickness</span>
+            <span class="field-unit">mm</span>
+          </div>
+          <div class="field-value" id="v-skin">29</div>
+          <input type="range" class="slider" id="skin" min="7" max="99" value="29" step="1" oninput="setVal('skin','v-skin',0)">
+          <div class="field-range"><span>7</span><span>99</span></div>
+          <div class="field-hint">Triceps skinfold thickness</div>
+        </div>
+
+        <!-- Insulin -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Insulin</span>
+            <span class="field-unit">μU/mL</span>
+          </div>
+          <div class="field-value" id="v-insulin">125</div>
+          <input type="range" class="slider" id="insulin" min="14" max="846" value="125" step="1" oninput="setVal('insulin','v-insulin',0)">
+          <div class="field-range"><span>14</span><span>846</span></div>
+          <div class="field-hint">2-hour serum insulin level</div>
+        </div>
+
+        <!-- BMI -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">BMI</span>
+            <span class="field-unit">kg/m²</span>
+          </div>
+          <div class="field-value" id="v-bmi">32.0</div>
+          <input type="range" class="slider" id="bmi" min="18" max="67" value="32" step="0.1" oninput="setVal('bmi','v-bmi',1)">
+          <div class="field-range"><span>18</span><span>67</span></div>
+          <div class="field-hint">Body mass index</div>
+        </div>
+
+        <!-- DPF -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Diabetes pedigree function</span>
+            <span class="field-unit">score</span>
+          </div>
+          <div class="field-value" id="v-dpf">0.47</div>
+          <input type="range" class="slider" id="dpf" min="0.08" max="2.42" value="0.47" step="0.01" oninput="setVal('dpf','v-dpf',2)">
+          <div class="field-range"><span>0.08</span><span>2.42</span></div>
+          <div class="field-hint">Genetic diabetes likelihood score</div>
+        </div>
+
+        <!-- Age -->
+        <div class="field-card">
+          <div class="field-top">
+            <span class="field-label">Age</span>
+            <span class="field-unit">years</span>
+          </div>
+          <div class="field-value" id="v-age">33</div>
+          <input type="range" class="slider" id="age" min="21" max="81" value="33" step="1" oninput="setVal('age','v-age',0)">
+          <div class="field-range"><span>21</span><span>81</span></div>
+          <div class="field-hint">Patient age in years</div>
+        </div>
+      </div>
+
+      <!-- Predict Button -->
+      <div class="predict-wrap">
+        <button class="predict-btn" id="predictBtn" onclick="runPrediction()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Run prediction
+        </button>
+      </div>
+
+      <!-- Error -->
+      <div id="errorBox" style="display:none"></div>
+
+      <!-- Result -->
+      <div id="resultSection" style="display:none">
+        <div class="section-header">
+          <h2>Prediction result</h2>
+          <div class="section-divider"></div>
+        </div>
+        <div class="result-card">
+          <div class="result-top">
+            <div>
+              <div class="result-label">Diagnosis</div>
+              <div class="result-verdict" id="resultVerdict"></div>
+              <div class="result-desc" id="resultDesc"></div>
+            </div>
+            <svg class="result-gauge" id="gaugeEl" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#2d3348" stroke-width="8"/>
+              <circle cx="50" cy="50" r="42" fill="none" id="gaugeArc"
+                stroke="#4f8ef7" stroke-width="8"
+                stroke-dasharray="264" stroke-dashoffset="264"
+                stroke-linecap="round"
+                transform="rotate(-90 50 50)"
+                style="transition:stroke-dashoffset .9s cubic-bezier(.34,1.2,.64,1)"/>
+              <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="600" fill="#e8eaf0" font-family="'JetBrains Mono',monospace" id="gaugePct">--</text>
+              <text x="50" y="62" text-anchor="middle" font-size="9" fill="#8891aa" font-family="'Inter',sans-serif">probability</text>
+            </svg>
+          </div>
+
+          <div class="result-metrics">
+            <div class="metric">
+              <div class="metric-label">Prediction</div>
+              <div class="metric-val" id="mPred">--</div>
+              <div class="metric-sub">Output class</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Confidence</div>
+              <div class="metric-val" id="mConf">--</div>
+              <div class="metric-sub">Model certainty</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Risk level</div>
+              <div class="metric-val" id="mRisk">--</div>
+              <div class="metric-sub">Clinical priority</div>
+            </div>
+          </div>
+
+          <div class="result-bar-section">
+            <div class="bar-header">
+              <span>Diabetes probability</span>
+              <span id="barPct">--</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" id="barFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="disclaimer">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            For research and educational use only. Not a substitute for clinical diagnosis by a qualified healthcare professional.
+          </div>
+        </div>
+
+        <!-- Payload Preview -->
+        <div class="payload-card">
+          <div class="payload-header">
+            <span class="payload-title">CSV payload sent to SageMaker</span>
+            <button class="copy-btn" onclick="copyPayload()">Copy</button>
+          </div>
+          <div class="payload-code" id="payloadPreview"></div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div id="history" class="history-card">
+        <div class="history-header">
+          <span class="history-title">Prediction history</span>
+          <button class="clear-btn" onclick="clearHistory()">Clear all</button>
+        </div>
+        <div id="historyBody">
+          <div class="no-history">No predictions yet. Run your first prediction above.</div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────────
+// After deploying Lambda + API Gateway, replace this URL:
+const API_URL = "https://3wnsbonc51.execute-api.ap-south-1.amazonaws.com/prod/predict";
+// For direct SageMaker testing (requires IAM auth — will fail from browser):
+const SAGEMAKER_URL = "https://runtime.sagemaker.ap-south-1.amazonaws.com/endpoints/canvas-Disease-Detection-new-deployment-06-28-2026-11-36-PM/invocations";
+
+let history = [];
+let lastPayload = "";
+
+// ── Slider helpers ──────────────────────────────────────────────────────
+function setVal(id, valId, dec) {
+  const v = parseFloat(document.getElementById(id).value);
+  document.getElementById(valId).textContent = v.toFixed(dec);
+}
+
+// ── Main prediction ─────────────────────────────────────────────────────
+async function runPrediction() {
+  const btn = document.getElementById('predictBtn');
+  const errBox = document.getElementById('errorBox');
+
+  const vals = {
+    pregnancies: parseInt(document.getElementById('preg').value),
+    glucose: parseInt(document.getElementById('glucose').value),
+    bloodPressure: parseInt(document.getElementById('bp').value),
+    skinThickness: parseInt(document.getElementById('skin').value),
+    insulin: parseInt(document.getElementById('insulin').value),
+    bmi: parseFloat(parseFloat(document.getElementById('bmi').value).toFixed(1)),
+    dpf: parseFloat(parseFloat(document.getElementById('dpf').value).toFixed(3)),
+    age: parseInt(document.getElementById('age').value),
+  };
+
+  const csv = `${vals.pregnancies},${vals.glucose},${vals.bloodPressure},${vals.skinThickness},${vals.insulin},${vals.bmi},${vals.dpf},${vals.age}`;
+  lastPayload = csv;
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Running inference…';
+  errBox.style.display = 'none';
+  document.getElementById('resultSection').style.display = 'none';
+
+  try {
+    let result;
+
+    if (API_URL.startsWith("YOUR")) {
+      // Demo mode — simulate a realistic result when API not yet deployed
+      await new Promise(r => setTimeout(r, 1200));
+      const prob = Math.min(0.99, Math.max(0.01,
+        (vals.glucose / 199) * 0.4 +
+        (vals.bmi / 67) * 0.2 +
+        (vals.dpf / 2.42) * 0.15 +
+        (vals.age / 81) * 0.1 +
+        (vals.insulin / 846) * 0.05 +
+        (vals.pregnancies / 17) * 0.1
+      ));
+      result = {
+        prediction: prob > 0.5 ? 1 : 0,
+        probability: parseFloat(prob.toFixed(4)),
+        label: prob > 0.5 ? "Diabetic" : "Non-Diabetic"
+      };
+    } else {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(vals)
+      });
+      if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+      result = await resp.json();
+    }
+
+    showResult(result, vals, csv);
+    addHistory(result, vals);
+
+  } catch (err) {
+    errBox.style.display = 'block';
+    errBox.innerHTML = `
+      <div class="error-card">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <div>
+          <strong>Prediction failed</strong><br>
+          ${err.message}<br><br>
+          <span style="opacity:.8">Replace <code>API_URL</code> in the script with your deployed Lambda endpoint URL. See <code>deploy.sh</code> for setup instructions.</span>
+        </div>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run prediction';
+  }
+}
+
+function showResult(result, vals, csv) {
+  const isDiabetic = result.prediction === 1;
+  const prob = result.probability;
+  const pct = Math.round(prob * 100);
+
+  document.getElementById('resultSection').style.display = 'block';
+  document.getElementById('payloadPreview').textContent = csv;
+
+  const verdict = document.getElementById('resultVerdict');
+  verdict.textContent = isDiabetic ? 'Diabetic — High Risk' : 'Non-Diabetic — Low Risk';
+  verdict.className = 'result-verdict ' + (isDiabetic ? 'danger' : 'success');
+
+  document.getElementById('resultDesc').textContent = isDiabetic
+    ? 'The model predicts a high likelihood of diabetes. Clinical follow-up and confirmatory tests are strongly recommended.'
+    : 'The model predicts a low likelihood of diabetes based on the provided clinical values. Routine monitoring is advised.';
+
+  // Gauge
+  const arc = document.getElementById('gaugeArc');
+  const circumference = 264;
+  arc.style.stroke = isDiabetic ? '#f05454' : '#34c97e';
+  setTimeout(() => {
+    arc.style.strokeDashoffset = circumference - (circumference * prob);
+  }, 80);
+  document.getElementById('gaugePct').textContent = pct + '%';
+
+  // Metrics
+  const mPred = document.getElementById('mPred');
+  mPred.textContent = isDiabetic ? 'Diabetic' : 'Non-Diabetic';
+  mPred.className = 'metric-val ' + (isDiabetic ? 'danger' : 'success');
+
+  const mConf = document.getElementById('mConf');
+  mConf.textContent = pct + '%';
+  mConf.className = 'metric-val ' + (pct > 70 ? (isDiabetic ? 'danger' : 'success') : 'accent');
+
+  const mRisk = document.getElementById('mRisk');
+  const riskLevel = pct >= 75 ? 'High' : pct >= 50 ? 'Medium' : 'Low';
+  mRisk.textContent = riskLevel;
+  mRisk.className = 'metric-val ' + (riskLevel === 'High' ? 'danger' : riskLevel === 'Medium' ? '' : 'success');
+
+  // Bar
+  const bar = document.getElementById('barFill');
+  bar.className = 'bar-fill ' + (isDiabetic ? 'danger' : 'success');
+  document.getElementById('barPct').textContent = pct + '%';
+  setTimeout(() => { bar.style.width = pct + '%'; }, 100);
+
+  document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── History ─────────────────────────────────────────────────────────────
+function addHistory(result, vals) {
+  const entry = {
+    time: new Date().toLocaleTimeString(),
+    glucose: vals.glucose,
+    bmi: vals.bmi,
+    age: vals.age,
+    prob: Math.round(result.probability * 100),
+    label: result.label,
+    isDiabetic: result.prediction === 1
+  };
+  history.unshift(entry);
+  renderHistory();
+}
+
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  if (history.length === 0) {
+    body.innerHTML = '<div class="no-history">No predictions yet. Run your first prediction above.</div>';
+    return;
+  }
+  body.innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Time</th><th>Glucose</th><th>BMI</th><th>Age</th><th>Probability</th><th>Result</th>
+      </tr></thead>
+      <tbody>
+        ${history.map(e => `
+          <tr>
+            <td>${e.time}</td>
+            <td>${e.glucose}</td>
+            <td>${e.bmi}</td>
+            <td>${e.age}</td>
+            <td>${e.prob}%</td>
+            <td><span class="pill ${e.isDiabetic ? 'danger' : 'success'}">${e.label}</span></td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function clearHistory() {
+  history = [];
+  renderHistory();
+}
+
+function copyPayload() {
+  navigator.clipboard.writeText(lastPayload).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+</script>
+</body>
+</html>
