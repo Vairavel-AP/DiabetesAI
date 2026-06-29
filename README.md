@@ -1,4 +1,3 @@
-# DiabetesAI
 # 🩺 DiabetesAI — End-to-End AWS Machine Learning Pipeline
 
 > A production-grade diabetes risk prediction system built entirely on AWS — from raw data ingestion to a live public web application powered by a real-time SageMaker inference endpoint.
